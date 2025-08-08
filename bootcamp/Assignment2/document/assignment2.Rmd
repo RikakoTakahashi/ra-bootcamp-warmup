@@ -1,0 +1,103 @@
+---
+title: "Assignment_2"
+author: "Rikako Takahashi"
+date: "2025-08-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r}
+rm(list = ls()) #clear 
+getwd()
+pacman::p_load(tidyverse, readr, here)
+```
+
+## Problem 1
+col1 にNAが含まれているかどうかを示すダミー変数を作る。
+
+```{r}
+df <- tibble(
+  col1 = sample(c(NA, 1), size = 100, replace = TRUE)) |>
+  mutate(is_na = if_else(is.na(col1), TRUE, FALSE))
+
+df
+```
+
+[変更点]
+・mutate()の中身、col1 == NA を is.na(col1)に変えた
+
+
+## Problem 2
+csvファイルを読み込み、nameを含む列を選択する。
+```{r, show_col_types = FALSE}
+df_population <- readr::read_csv(here::here(
+  "Assignment2/data/assignment23_data/raw", "population_ps2.csv"),
+  show_col_types = FALSE)
+
+list_vars <- tidyselect::vars_select(
+  names(df_population), contains("name"))
+
+df_population %>% 
+  select(list_vars)
+```
+[変更点]
+・データの場所を"data/raw/assignment23_data/raw"に指定した。
+・tidyselect::vars_selectにした
+
+
+## Problem 3
+人口の変化率を計算し、log-log回帰する。
+```{r}
+df_population <- readr::read_csv(here::here(
+  "Assignment2/data/assignment23_data/raw", "population_ps2.csv"),
+  show_col_types = FALSE)
+
+df_lm <- df_population |> 
+  arrange(city_name, year) |>
+  mutate(
+    change_rate = log(population) - log(lag(population, n =20)),
+    .by = city_id) |>
+  dplyr::filter(year == 2015) 
+
+lm(change_rate ~ log(population), data = df_lm)
+
+```
+[変更点]
+・logとlagの順番を変えた
+・change_rateがそもそも対数をとってあるので、最後のOLSでも被説明変数からlogを除いた。
+
+
+## Problem 4
+わかりません
+
+## Problem 5
+
+```{r}
+df <- tibble(a = seq(1, 10))
+
+add_column <- function(df, new_col) {
+  df <- df |>
+    mutate(
+      {{new_col}} := if_else(a > 5, TRUE, FALSE)
+           )
+  return(df)
+}
+
+add_column(df, new_col = "higher") |>
+  dplyr::filter(higher == TRUE)
+
+```
+
+[変更点]
+function の第二引数をnew_colに変更し、mutateの中身を{{new_col}}にした。
+
+## Problem 6
+わかりません
+
+
+
+
+

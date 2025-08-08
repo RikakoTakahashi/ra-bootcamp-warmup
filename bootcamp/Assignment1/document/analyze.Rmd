@@ -1,0 +1,167 @@
+---
+title: "Analyze"
+author: "Rikako Takahashi"
+date: "2025-08-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+pacman::p_load(tidyverse, gt, gtExtras, DT) 
+```
+
+```{r}
+df <- readRDS("data/cleaned/df_int.rds") #データ読み込み
+```
+
+
+```{r}
+#まず年度情報だけのデータセットを作る
+df_1 <- df |>
+  group_by(Year) |>
+  summarize(absent_year = mean(sum_absent_year),
+            proportion_year = mean(proportion_year),
+            .groups = "drop")|>
+  mutate(percentage = proportion_year * 100)|>
+  mutate(absent_year = absent_year / 10000)
+
+df_1$percentage <- round(df_1$percentage, digit = 1)
+```
+
+合計不登校者数の推移, 棒グラフ（図 1）
+
+```{r}
+#グラフ作成
+Figure1 <- df_1 |>
+  ggplot()+
+  geom_bar(aes(x = Year, y = absent_year), stat = "identity") +
+  labs(x = "年度", y = "不登校生徒数(万人)", title = "図1： 合計不登校者数の推移")+
+  theme_minimal() +
+  scale_x_continuous(breaks = 2013:2022, labels = 2013:2022)
+
+print(Figure1)
+```
+
+合計不登校者数の推移, 表（表1）
+```{r}
+#表1作成
+Table1 <- df_1 |>
+  select(-proportion_year, -percentage)|>
+  mutate(absent_year = absent_year * 10000) |>
+  gt()|>
+  cols_label("Year" = "年度", "absent_year" = "合計不登校者数（人）") |>
+  tab_header(title = "表1：合計不登校者数の推移")
+
+print(Table1)
+```
+
+
+不登校割合の推移、折れ線グラフ、各年の上に小数第 2 位で四捨五入した数値を
+記入（図 2）
+```{r}
+#グラフ2作成
+Figure2 <- df_1 |>
+  group_by(Year)|>
+  ggplot(aes(x = Year, y = percentage))+
+  geom_line(stat = "identity") +
+  geom_point() +
+  geom_text(aes(label = percentage), vjust = -1) +
+  labs(x = "年度", y = "不登校生徒割合(%)", title = "図2：不登校割合の推移")+
+  theme_light() +
+  scale_x_continuous(breaks = 2013:2022, labels = 2013:2022) +
+  coord_cartesian(ylim = c(0, 10)) 
+
+print(Figure2)
+```
+
+
+合計不登校者数と不登校割合を重ねたグラフ、合計は棒グラフで左軸、推移は折
+れ線グラフで右軸（図 3）
+
+```{r}
+#スケーリング
+scaling <- max(df_1$absent_year) / max(df_1$percentage)
+```
+
+```{r}
+#グラフ3作成
+Figure3 <- df_1 |>
+  ggplot(aes(x = Year))+
+  geom_bar(aes(y = absent_year), 
+           stat  = "identity", 
+           fill  = "lightblue") +
+  geom_line(aes(y = percentage), stat = "identity", color = "red") +
+  scale_x_continuous(breaks = 2013:2022, labels = 2013:2022)+
+  scale_y_continuous(
+    name = "合計不登校者数",
+    limits = c(0, 26),
+    expand = c(0, 0),
+    sec.axis = sec_axis(~. / scaling, name = "不登校割合(%)")
+    ) +
+  labs(x = "年度",  title = "図3：合計不登校者数と不登校割合推移")+
+  theme_minimal() 
+
+print(Figure3)
+```
+
+
+• 2022 年度のデータに絞って不登校割合のヒストグラム、平均値に破線を引く
+（図 4）
+```{r}
+#2022年度のデータに絞る
+df_2 <- df |>
+  filter(Year == 2022) |> 
+  mutate(proportion_22 = Number_absent / Number * 100) #不登校割合
+
+mean_proportion <-  mean(df_2$proportion_22) #平均値を計算
+```   
+
+```{r}
+#グラフ4作成
+Figure4 <- df_2 |>
+  ggplot(aes(x = proportion_22)) +
+  geom_histogram(color = "darkgrey", fill = "pink", 
+                 binwidth = 0.4, boundary = 0.5) +
+  geom_vline(xintercept = mean_proportion, 
+             color = "black", 
+             linetype = "dashed")+
+  labs(x = "不登校割合(%)", y = "都道府県数",
+       title = "図4：不登校割合のヒストグラム")+
+  theme_minimal()
+
+print(Figure4)
+```
+
+
+
+2022 年度の不登校率が高い順に都道府県を並べて縦棒グラフ、一番楽しかった場所を 1 つ選んでピンクに、それ以外をグレーで配色（図 5）
+```{r}
+#楽しかった場所のためのフラグを立てる
+df_2 <- df_2 |>
+  mutate(highlight = ifelse(Prefecture == "京都", "highlight", "normal"))
+
+#グラフ5作成
+Figure5 <- df_2 |>
+  ggplot(aes(
+    x = proportion_22, 
+    y = fct_reorder(Prefecture, proportion_22),
+    fill = highlight)) +
+  geom_col(color = "white", show.legend = FALSE) +
+  scale_fill_manual(
+    values = c("highlight" = "pink", "normal" = "grey"),
+    ) +
+  labs(x = "不登校割合（％）", y = "都道府県名",
+       title = "図5：2022年度の都道府県別不登校率と一番楽しかった場所")
+
+print(Figure5)
+
+```
+
+
+
+
+
+  
